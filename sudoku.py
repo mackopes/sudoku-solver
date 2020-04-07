@@ -4,8 +4,8 @@ Grid = NewType('Grid', List[List[int]])
 
 
 class Sudoku:
-    POSSIBLE_VALUES = set([1, 2, 3, 4, 5, 6, 7, 8, 9])  # Type: Set[int]
-    CV = [
+    POSSIBLE_VALUES = set(range(1, 10))  # Type: Set[int]
+    CV = [  # mapping from grid element to 3x3 cell index
         [0, 0, 0, 1, 1, 1, 2, 2, 2],
         [0, 0, 0, 1, 1, 1, 2, 2, 2],
         [0, 0, 0, 1, 1, 1, 2, 2, 2],
@@ -25,12 +25,20 @@ class Sudoku:
         self._initialise(grid)
 
     def _initialise(self, grid: Grid) -> None:
+        """
+        Simply a contructor that can be called from inside the object
+        if we ever want to reset the object to a different state
+        """
         self.grid = grid
+        # Sets of values that are present in each row, column, cell
         self.row_values = [set(row) - {0} for row in grid]
         self.column_values = [set(col) - {0} for col in self._transpose(grid)]
         self.cell_values = self._get_cell_values()
 
     def _get_cell_values(self) -> List[Set[int]]:
+        """
+        A list of values present in each cell
+        """
         cell_values = [set() for _ in self.grid]  # type: List[Set[int]]
         for i, row in enumerate(self.grid):
             for j, elem in enumerate(row):
@@ -43,6 +51,10 @@ class Sudoku:
         return list(zip(*arr))
 
     def _update_taken_values(self, row: int, col: int, value: int) -> None:
+        """
+        Update lists holding values present in each row, column and 3x3 cell
+        upon adition of new element
+        """
         assert 0 <= row < 9
         assert 0 <= col < 9
         assert 0 < value <= 9
@@ -52,6 +64,9 @@ class Sudoku:
         self.cell_values[self.CV[row][col]].add(value)
 
     def _possible_values(self, row: int, col: int) -> Set[int]:
+        """
+        A set of possible values for given tile
+        """
         return \
             self.POSSIBLE_VALUES \
             - self.row_values[row] \
@@ -59,6 +74,12 @@ class Sudoku:
             - self.cell_values[self.CV[row][col]]
 
     def _refine(self) -> bool:
+        """
+        Sweep once through whole Sudoku grid. If there are any cells
+        that can be filled in instantly, i.e. there is only one possible
+        value for the cell, then do it.
+        Return True if there were any changes in the grid, False otherwise.
+        """
         changed = False
         for row_i, row in enumerate(self.grid):
             for col_i, elem in enumerate(row):
@@ -72,6 +93,9 @@ class Sudoku:
         return changed
 
     def is_solved(self) -> bool:
+        """
+        Returns True of the sudoku is completely and correctly solved
+        """
         rows_valid = all([len(set(row)) == 9 for row in self.grid])
         cols_valid = all([len(set(col)) == 9 for col in self._transpose(self.grid)])
         cells_valid = all([len(cell) == 9 for cell in self._get_cell_values()])
@@ -80,6 +104,10 @@ class Sudoku:
         return rows_valid and cols_valid and cells_valid and no_zeros
 
     def _is_solvable(self) -> bool:
+        """
+        Returns False if there is a cell that has 0 possible values,
+        True otherwise.
+        """
         for row_i, row in enumerate(self.grid):
             for col_i, elem in enumerate(row):
                 if elem == 0:
@@ -89,7 +117,14 @@ class Sudoku:
         return True
 
     def _solve(self) -> Optional[Grid]:
-        while self._refine():  # refine while possible. It's cheap and easy
+        """
+        Try to solve the whole sudoku by recursively adding more and more numbers
+        """
+
+        # refine while possible. It's cheap and easy.
+        # the code will work even without this step, but it's cheaper to refine
+        # the grid when you do not have to copy it every time
+        while self._refine():
             continue
 
         if not self._is_solvable():
@@ -98,7 +133,10 @@ class Sudoku:
         if self.is_solved():  # solved, we are done
             return self.grid
 
-        row, col = self._least_amount_of_work_elem()
+        # to keep the branching factor as low as possible,
+        # pick grid tile the tile with the lowest number of values
+        # to fill in and try each one by one
+        row, col = self._least_number_of_possible_values()
         possible_values = self._possible_values(row, col)
 
         for value in possible_values:
@@ -109,14 +147,22 @@ class Sudoku:
             if solved_grid is not None:
                 return solved_grid
 
+        # this branch is not solvable
         return None
 
     def solve(self) -> None:
+        """
+        Solve the sudoku!
+        Warning: This solves the sudoku inplace, therefore overwriting the grid
+        """
         solved_grid = self._solve()
         if solved_grid is not None:
             self._initialise(solved_grid)
 
-    def _least_amount_of_work_elem(self) -> Tuple[int, int]:
+    def _least_number_of_possible_values(self) -> Tuple[int, int]:
+        """
+        Cell with the least number of possible values to fill in
+        """
         least_values = 10
         r, c = (-1, -1)
         for row_i, row in enumerate(self.grid):
@@ -134,15 +180,24 @@ class Sudoku:
         return (r, c)
 
     def copy_grid(self) -> Grid:
+        """
+        As the name suggests, copy the grid
+        """
         new_grid = [[elem for elem in row] for row in self.grid]
         return Grid(new_grid)
 
     @staticmethod
     def chunks(l: Iterable, chunk_size: int):
+        """
+        Split the iterable into smaller chunks
+        """
         for i in range(0, len(l), chunk_size):
             yield l[i: i + chunk_size]
 
     def __str__(self) -> str:
+        """
+        String representation of Sudoku
+        """
         HS = "|"  # Horizontal separator
         VS = "-"  # Vertical separator
         IN = "+"  # Intersection
