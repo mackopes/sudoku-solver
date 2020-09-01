@@ -1,7 +1,7 @@
 import setuptools
 
 setuptools.setup(
-    name="sudoku-solver-mackopes",
+    name="sudoku_solver",
     version="0.1",
     author="mackopes",
     author_email="pialamar@gmail.com",
